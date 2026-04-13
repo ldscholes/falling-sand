@@ -257,7 +257,9 @@ const EMPTY = 0, SAND = 1, WATER = 2, STONE = 3, FIRE = 4, WOOD = 5,
       GUNPOWDER_LIT = 13, C4_LIT = 14, DYNAMITE = 15, DYNAMITE_LIT = 16,
       BLACKHOLE = 17, GAS = 18, LAVA = 19, ICE = 20, STEAM = 21,
       METAL = 22, MUD = 23, GLASS = 24, VIRUS = 25, CLONE = 26, VOID = 27,
-      WET_WOOD = 28, PORTAL_BLUE = 29, PORTAL_ORANGE = 30;
+      WET_WOOD = 28, PORTAL_BLUE = 29, PORTAL_ORANGE = 30, HOPPER = 31, HOPPER_FIRE = 32,
+      FUSE = 33, FUSE_LIT = 34, NITRO = 35, NITRO_LIT = 36,
+      FIREWORK = 37, FIREWORK_LIT = 38;
 
 const PORTAL = 99; // virtual ID for the tool selector
 
@@ -286,6 +288,10 @@ const ALL_MATERIALS = [
   { id: CLONE,     name: 'Clone',      key: 'x', bg: '#ff69b4' },
   { id: VOID,      name: 'Void',       key: 'c', bg: '#000000' },
   { id: PORTAL,    name: 'Portal',     key: 'v', bg: 'linear-gradient(90deg, #0066ff, #ff6600)' },
+  { id: HOPPER,    name: 'Hopper',     key: 'b', bg: '#e04080' },
+  { id: FUSE,      name: 'Fuse',       key: 'n', bg: '#8b6914' },
+  { id: NITRO,     name: 'Nitro',      key: 'm', bg: '#00cccc' },
+  { id: FIREWORK,  name: 'Firework',   key: ',', bg: '#ff1493' },
 ];
 
 // ============================================================
@@ -1201,6 +1207,296 @@ const LEVELS = [
       }
     }
   },
+  {
+    id: 25,
+    name: 'Frozen Path',
+    objective: 'The hoppers can\'t swim! Place ice to freeze the water and create a path for them to walk across.',
+    materials: [ICE],
+    winType: null,
+    setup(setCell) {
+      // ground
+      hLine(setCell, 40, 260, 160, WALL);
+      vLine(setCell, 40, 20, 160, WALL);
+      vLine(setCell, 260, 20, 160, WALL);
+      // water pool in the middle
+      for (let x = 110; x <= 190; x++) {
+        for (let y = 145; y <= 159; y++) {
+          setCell(x, y, WATER);
+        }
+      }
+      // walls containing the water
+      vLine(setCell, 109, 140, 160, WALL);
+      vLine(setCell, 191, 140, 160, WALL);
+      // target zone on the right
+      this._targetX1 = 220; this._targetX2 = 255;
+      // spawn a few hoppers on the left
+      for (let x = 55; x <= 90; x += 10) {
+        setCell(x, 159, HOPPER);
+      }
+    },
+    tick(setCell, getType, tick) {
+      // spawn more hoppers periodically
+      if (tick % 120 === 0 && tick < 1200) {
+        const hx = 55 + Math.floor(Math.random() * 30);
+        if (getType(hx, 158) === EMPTY) setCell(hx, 158, HOPPER);
+        this._lastSpawn = tick + 60;
+      }
+    },
+    checkWin(getType, tick) {
+      if (!this._lastSpawn) this._lastSpawn = 1260;
+      let count = 0;
+      for (let y = 140; y <= 159; y++) {
+        for (let x = 220; x <= 255; x++) {
+          if (getType(x, y) === HOPPER) count++;
+        }
+      }
+      if (count >= 3) return 'win';
+      // fail only if no hoppers alive anywhere
+      if (tick > 300) {
+        let alive = 0;
+        for (let y = 0; y < 200; y++) {
+          for (let x = 0; x < 300; x++) {
+            if (getType(x, y) === HOPPER) alive++;
+          }
+        }
+        if (alive === 0 && tick > this._lastSpawn) return 'fail';
+      }
+      return null;
+    }
+  },
+  {
+    id: 26,
+    name: 'Lava Walk',
+    objective: 'Pour water on the lava to cool it into stone. Get the hoppers safely across to the other side!',
+    materials: [WATER, STONE],
+    winType: null,
+    setup(setCell) {
+      // ground on sides, lava gap in the middle
+      hLine(setCell, 40, 110, 160, WALL);
+      hLine(setCell, 190, 260, 160, WALL);
+      vLine(setCell, 40, 20, 160, WALL);
+      vLine(setCell, 260, 20, 160, WALL);
+      // lava pit
+      hLine(setCell, 110, 190, 180, WALL); // floor under lava
+      vLine(setCell, 110, 160, 180, WALL);
+      vLine(setCell, 190, 160, 180, WALL);
+      for (let x = 111; x <= 189; x++) {
+        for (let y = 161; y <= 179; y++) {
+          setCell(x, y, LAVA);
+        }
+      }
+      // hoppers on the left
+      for (let x = 55; x <= 90; x += 10) {
+        setCell(x, 159, HOPPER);
+      }
+    },
+    tick(setCell, getType, tick) {
+      if (tick % 120 === 0 && tick < 1200) {
+        const hx = 55 + Math.floor(Math.random() * 30);
+        if (getType(hx, 158) === EMPTY) setCell(hx, 158, HOPPER);
+        this._lastSpawn = tick + 60;
+      }
+    },
+    checkWin(getType, tick) {
+      if (!this._lastSpawn) this._lastSpawn = 1260;
+      let count = 0;
+      for (let y = 140; y <= 159; y++) {
+        for (let x = 220; x <= 255; x++) {
+          if (getType(x, y) === HOPPER) count++;
+        }
+      }
+      if (count >= 3) return 'win';
+      if (tick > 300) {
+        let alive = 0;
+        for (let y = 0; y < 200; y++) {
+          for (let x = 0; x < 300; x++) {
+            if (getType(x, y) === HOPPER) alive++;
+          }
+        }
+        if (alive === 0 && tick > this._lastSpawn) return 'fail';
+      }
+      return null;
+    }
+  },
+  {
+    id: 27,
+    name: 'Oil Slick',
+    objective: 'The hoppers will sink into the oil and drown! Freeze it with ice or burn it with fire to clear the path.',
+    materials: [ICE, FIRE],
+    winType: null,
+    setup(setCell) {
+      // ground with stepped pools of oil
+      vLine(setCell, 40, 20, 180, WALL);
+      vLine(setCell, 260, 20, 180, WALL);
+      // stepped terrain — descends left to right
+      hLine(setCell, 40, 100, 120, WALL);
+      hLine(setCell, 100, 160, 140, WALL);
+      hLine(setCell, 160, 220, 160, WALL);
+      hLine(setCell, 220, 260, 180, WALL);
+      // walls between steps to hold oil
+      vLine(setCell, 100, 120, 140, WALL);
+      vLine(setCell, 160, 140, 160, WALL);
+      vLine(setCell, 220, 160, 180, WALL);
+      // oil pools in each step
+      for (let x = 41; x <= 99; x++) {
+        for (let y = 110; y <= 119; y++) setCell(x, y, OIL);
+      }
+      for (let x = 101; x <= 159; x++) {
+        for (let y = 130; y <= 139; y++) setCell(x, y, OIL);
+      }
+      for (let x = 161; x <= 219; x++) {
+        for (let y = 150; y <= 159; y++) setCell(x, y, OIL);
+      }
+      // hoppers on the left
+      for (let x = 50; x <= 80; x += 10) {
+        setCell(x, 109, HOPPER);
+      }
+    },
+    tick(setCell, getType, tick) {
+      if (tick % 150 === 0 && tick < 1500) {
+        const hx = 50 + Math.floor(Math.random() * 25);
+        if (getType(hx, 108) === EMPTY) setCell(hx, 108, HOPPER);
+        this._lastSpawn = tick + 60;
+      }
+    },
+    checkWin(getType, tick) {
+      if (!this._lastSpawn) this._lastSpawn = 1560;
+      let count = 0;
+      for (let y = 150; y <= 179; y++) {
+        for (let x = 225; x <= 255; x++) {
+          if (getType(x, y) === HOPPER) count++;
+        }
+      }
+      if (count >= 3) return 'win';
+      if (tick > 300) {
+        let alive = 0;
+        for (let y = 0; y < 200; y++) {
+          for (let x = 0; x < 300; x++) {
+            if (getType(x, y) === HOPPER) alive++;
+          }
+        }
+        if (alive === 0 && tick > this._lastSpawn) return 'fail';
+      }
+      return null;
+    }
+  },
+  {
+    id: 28,
+    name: 'Blast Shield',
+    objective: 'A fuse is burning toward NITRO next to the hoppers! Build a metal wall to shield them from the massive blast.',
+    materials: [METAL],
+    winType: null,
+    survivalTime: 2100,
+    setup(setCell) {
+      // ground
+      hLine(setCell, 50, 250, 160, WALL);
+      vLine(setCell, 50, 20, 160, WALL);
+      vLine(setCell, 250, 20, 160, WALL);
+      // hoppers on the right
+      for (let x = 190; x <= 230; x += 8) {
+        setCell(x, 159, HOPPER);
+      }
+      this._hopperZone = { x1: 170, x2: 245 };
+      // NITRO charge in the middle
+      for (let x = 140; x <= 150; x++) {
+        for (let y = 152; y <= 159; y++) setCell(x, y, NITRO);
+      }
+      // fuse trail from the left to the nitro
+      for (let x = 55; x <= 139; x++) {
+        setCell(x, 155, FUSE);
+      }
+      // light the fuse from the far left after a delay
+      this._fuselit = false;
+    },
+    tick(setCell, getType, tick) {
+      // light the fuse after 300 ticks (5 seconds to build the wall)
+      if (!this._fuselit && tick >= 300) {
+        setCell(55, 155, FUSE_LIT);
+        this._fuselit = true;
+      }
+    },
+    checkWin(getType, tick) {
+      // count all living hoppers
+      let alive = 0;
+      for (let y = 0; y < 200; y++) {
+        for (let x = 0; x < 300; x++) {
+          if (getType(x, y) === HOPPER) alive++;
+        }
+      }
+      // fail immediately if any hopper dies (started with 6)
+      if (tick > 400 && alive < 6) return 'fail';
+      // win if all 6 survive after the blast settles
+      if (tick >= this.survivalTime && alive >= 6) return 'win';
+      return null;
+    }
+  },
+  {
+    id: 29,
+    name: 'Remote Detonation',
+    objective: 'Draw a fuse from the opening to the C4 charges blocking the water pipe. Light it with fire!',
+    materials: [FUSE, FIRE],
+    winZone: { x1: 130, y1: 170, x2: 170, y2: 194 },
+    winType: WATER,
+    winCount: 60,
+    setup(setCell) {
+      // frame
+      vLine(setCell, 80, 10, 195, WALL);
+      vLine(setCell, 220, 10, 195, WALL);
+      hLine(setCell, 80, 220, 195, WALL);
+      hLine(setCell, 80, 220, 10, WALL);
+      // water reservoir at top
+      for (let x = 81; x <= 219; x++) {
+        for (let y = 11; y <= 50; y++) {
+          setCell(x, y, WATER);
+        }
+      }
+      // stone pipe walls
+      hLine(setCell, 80, 220, 55, WALL);
+      hLine(setCell, 80, 220, 70, WALL);
+      // C4 blockage in the pipe — player needs to blow this up
+      for (let x = 130; x <= 170; x++) {
+        for (let y = 56; y <= 69; y++) setCell(x, y, C4);
+      }
+      // gap in pipe ceiling for water to enter
+      for (let x = 140; x <= 160; x++) setCell(x, 55, EMPTY);
+      // gap in pipe floor for water to exit
+      for (let x = 140; x <= 160; x++) setCell(x, 70, EMPTY);
+      // stone wall separating the fuse area from the pipe
+      hLine(setCell, 80, 220, 100, WALL);
+      // opening in the wall for fuse access
+      for (let x = 95; x <= 105; x++) setCell(x, 100, EMPTY);
+      // the player draws fuse from the opening up to the C4
+    }
+  },
+  {
+    id: 30,
+    name: 'Rocket Strike',
+    objective: 'A wooden ceiling blocks the sand from reaching the basin. Launch fireworks from below to blast through it!',
+    materials: [FIREWORK],
+    winZone: { x1: 120, y1: 165, x2: 180, y2: 194 },
+    winType: SAND,
+    winCount: 50,
+    setup(setCell) {
+      // frame
+      vLine(setCell, 90, 10, 195, WALL);
+      vLine(setCell, 210, 10, 195, WALL);
+      hLine(setCell, 90, 210, 195, WALL);
+      hLine(setCell, 90, 210, 10, WALL);
+      // sand reservoir at top
+      for (let x = 91; x <= 209; x++) {
+        for (let y = 11; y <= 45; y++) {
+          if (Math.random() < 0.9) setCell(x, y, SAND);
+        }
+      }
+      // thick wooden ceiling — fireworks must blast through this
+      for (let x = 91; x <= 209; x++) {
+        for (let y = 50; y <= 60; y++) setCell(x, y, WOOD);
+      }
+      // launch platform below — gap in the middle for sand to pass through
+      hLine(setCell, 90, 130, 140, WALL);
+      hLine(setCell, 170, 210, 140, WALL);
+    }
+  },
 ];
 
 // helper to draw lines in setup
@@ -1274,6 +1570,14 @@ function colorFor(type) {
     case WET_WOOD:      return [randInt(60,80),   randInt(40,55),   randInt(25,40)];
     case PORTAL_BLUE:   return [randInt(0,20),    randInt(80,120),  randInt(220,255)];
     case PORTAL_ORANGE: return [randInt(230,255), randInt(120,160), randInt(0,20)];
+    case HOPPER:        return [randInt(200,230), randInt(50,80),   randInt(110,140)];
+    case HOPPER_FIRE:   return [randInt(220,255), randInt(80,130),  randInt(20,50)];
+    case FUSE:          return [randInt(130,150), randInt(100,115), randInt(20,35)];
+    case FUSE_LIT:      return [randInt(220,255), randInt(100,160), randInt(10,40)];
+    case NITRO:         return [randInt(0,20),    randInt(190,220), randInt(200,230)];
+    case NITRO_LIT:     return [randInt(100,180), randInt(220,255), randInt(220,255)];
+    case FIREWORK:      return [randInt(200,230), randInt(20,60),   randInt(100,140)];
+    case FIREWORK_LIT:  return [randInt(255,255), randInt(200,255), randInt(50,100)];
     default:    return [0, 0, 0];
   }
 }
@@ -1304,6 +1608,11 @@ function setCell(x, y, type, isFixed) {
     else if (type === STEAM) lifetime[i] = randInt(120, 250);
     else if (type === MUD) lifetime[i] = randInt(500, 800); // drying time
     else if (type === WET_WOOD) lifetime[i] = randInt(900, 1500); // drying time
+    else if (type === FUSE_LIT) lifetime[i] = randInt(8, 15);
+    else if (type === NITRO_LIT) lifetime[i] = randInt(35, 55);
+    else if (type === FIREWORK_LIT) lifetime[i] = randInt(60, 110); // flight time
+    else if (type === HOPPER) lifetime[i] = Math.random() < 0.5 ? 1 : -1; // direction
+    else if (type === HOPPER_FIRE) lifetime[i] = randInt(90, 150); // burn time
     else lifetime[i] = 0;
   }
 }
@@ -1402,6 +1711,9 @@ function updateFire(x, y) {
       if (t === GUNPOWDER) setCell(nx, ny, GUNPOWDER_LIT);
       if (t === C4) setCell(nx, ny, C4_LIT);
       if (t === DYNAMITE) setCell(nx, ny, DYNAMITE_LIT);
+      if (t === FUSE) setCell(nx, ny, FUSE_LIT);
+      if (t === NITRO) setCell(nx, ny, NITRO_LIT);
+      if (t === FIREWORK) setCell(nx, ny, FIREWORK_LIT);
     }
   }
   if (isEmpty(x, y - 1) && Math.random() < 0.3) swap(x, y, x, y - 1);
@@ -1458,6 +1770,20 @@ function updatePlant(x, y) {
   }
 }
 
+function explosionBlocked(cx, cy, tx, ty) {
+  // ray march from center to target, check if metal blocks the path
+  const dx = tx - cx, dy = ty - cy;
+  const steps = Math.max(Math.abs(dx), Math.abs(dy));
+  if (steps === 0) return false;
+  for (let s = 1; s < steps; s++) {
+    const mx = cx + Math.round(dx * s / steps);
+    const my = cy + Math.round(dy * s / steps);
+    const mt = getType(mx, my);
+    if (mt === METAL) return true;
+  }
+  return false;
+}
+
 function explode(cx, cy, radius) {
   for (let dy = -radius; dy <= radius; dy++) {
     for (let dx = -radius; dx <= radius; dx++) {
@@ -1467,10 +1793,21 @@ function explode(cx, cy, radius) {
       if (!inBounds(nx, ny)) continue;
       const t = getType(nx, ny);
       if (t === WALL || t === PORTAL_BLUE || t === PORTAL_ORANGE) continue; // indestructible
+      // metal absorbs blast — only destroyed at close range, blocks everything behind
+      if (t === METAL) {
+        if (dist < radius * 0.3) setCell(nx, ny, EMPTY);
+        continue;
+      }
+      // check if metal blocks the path from center to this cell
+      if (explosionBlocked(cx, cy, nx, ny)) continue;
       // chain reaction — light other explosives
       if (t === GUNPOWDER) { setCell(nx, ny, GUNPOWDER_LIT); continue; }
       if (t === C4) { setCell(nx, ny, C4_LIT); continue; }
       if (t === DYNAMITE) { setCell(nx, ny, DYNAMITE_LIT); continue; }
+      if (t === HOPPER) { setCell(nx, ny, HOPPER_FIRE); continue; }
+      if (t === FUSE) { setCell(nx, ny, FUSE_LIT); continue; }
+      if (t === NITRO) { setCell(nx, ny, NITRO_LIT); continue; }
+      if (t === FIREWORK) { setCell(nx, ny, FIREWORK_LIT); continue; }
       if (t === EMPTY) {
         // fire ring at the edge
         if (dist > radius * 0.6 && Math.random() < 0.4) setCell(nx, ny, FIRE);
@@ -1539,6 +1876,76 @@ function updateDynamiteLit(x, y) {
   if (isEmpty(x + dir, y + 1)) { swap(x, y, x + dir, y + 1); return; }
   if (isEmpty(x - dir, y + 1)) { swap(x, y, x - dir, y + 1); return; }
   if (lifetime[i] <= 0) { explode(x, y, 18); }
+}
+
+// firework is static — stays where placed until clicked/lit
+
+function fireworkExplode(cx, cy) {
+  // colorful starburst — pick a random color palette
+  const palettes = [
+    [[255,50,50],[255,150,50],[255,255,100]],    // red/orange
+    [[50,100,255],[100,200,255],[200,230,255]],   // blue
+    [[50,255,50],[150,255,100],[255,255,50]],     // green/yellow
+    [[255,50,200],[255,150,255],[200,100,255]],   // pink/purple
+    [[255,200,50],[255,255,150],[255,100,50]],    // gold
+  ];
+  const pal = palettes[Math.floor(Math.random() * palettes.length)];
+  const radius = randInt(8, 14);
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > radius) continue;
+      // sparse starburst pattern
+      if (Math.random() > 0.3) continue;
+      const nx = cx + dx, ny = cy + dy;
+      if (!inBounds(nx, ny)) continue;
+      if (!isEmpty(nx, ny) && getType(nx, ny) !== FIREWORK_LIT) continue;
+      const col = pal[Math.floor(Math.random() * pal.length)];
+      setCell(nx, ny, FIRE);
+      const fi = idx(nx, ny);
+      colorR[fi] = col[0]; colorG[fi] = col[1]; colorB[fi] = col[2];
+      lifetime[fi] = randInt(15, 40);
+    }
+  }
+}
+
+function updateFireworkLit(x, y) {
+  const i = idx(x, y);
+  lifetime[i]--;
+  // trail sparks
+  colorR[i] = randInt(255, 255);
+  colorG[i] = randInt(200, 255);
+  colorB[i] = randInt(50, 120);
+  // leave a spark trail
+  if (Math.random() < 0.5) {
+    const trailY = y + 1;
+    if (isEmpty(x, trailY)) {
+      setCell(x, trailY, FIRE);
+      lifetime[idx(x, trailY)] = randInt(5, 15);
+    }
+  }
+  if (lifetime[i] <= 0) {
+    fireworkExplode(x, y);
+    return;
+  }
+  // fly upward with random drift — only explodes from timer
+  const drift = Math.random() < 0.3 ? (Math.random() < 0.5 ? -1 : 1) : 0;
+  const nx = x + drift, ny = y - 1;
+  if (isEmpty(nx, ny)) {
+    swap(x, y, nx, ny);
+  } else if (isEmpty(x, ny)) {
+    swap(x, y, x, ny);
+  }
+  // if blocked, just wait — will explode when timer runs out
+}
+
+function updateNitroLit(x, y) {
+  const i = idx(x, y);
+  lifetime[i]--;
+  colorR[i] = randInt(80, 180);
+  colorG[i] = randInt(220, 255);
+  colorB[i] = randInt(220, 255);
+  if (lifetime[i] <= 0) { explode(x, y, 125); }
 }
 
 function updateWetWood(x, y) {
@@ -1612,6 +2019,8 @@ function updateLava(x, y) {
       if (t === GUNPOWDER) setCell(nx, ny, GUNPOWDER_LIT);
       if (t === C4) setCell(nx, ny, C4_LIT);
       if (t === DYNAMITE) setCell(nx, ny, DYNAMITE_LIT);
+      if (t === NITRO) setCell(nx, ny, NITRO_LIT);
+      if (t === FUSE) setCell(nx, ny, FUSE_LIT);
       if (t === GAS) { explode(nx, ny, 10); return; }
     }
   }
@@ -1670,13 +2079,11 @@ function updateSteam(x, y) {
 }
 
 function updateMetal(x, y) {
-  // heavy — sinks through sand, water, oil
+  // heavy — falls straight down, sinks through sand, water, oil
   const below = getType(x, y + 1);
   if (isEmpty(x, y + 1)) { swap(x, y, x, y + 1); return; }
   if (below === WATER || below === OIL || below === SAND) { swap(x, y, x, y + 1); return; }
-  const dir = Math.random() < 0.5 ? -1 : 1;
-  if (isEmpty(x + dir, y + 1)) { swap(x, y, x + dir, y + 1); return; }
-  if (isEmpty(x - dir, y + 1)) { swap(x, y, x - dir, y + 1); return; }
+  // no diagonal fall — metal stacks into towers
   // conduct fire — if a neighbor is fire, spread fire to another neighbor
   let hasFire = false;
   for (let dx = -1; dx <= 1; dx++) {
@@ -1800,6 +2207,142 @@ function updatePortal(x, y, partnerPos) {
   }
 }
 
+function updateHopper(x, y) {
+  const i = idx(x, y);
+  const dir = lifetime[i] >= 1 ? 1 : -1;
+
+  // animate color — little bouncing blob
+  const bounce = Math.sin(tick * 0.3 + x * 0.5);
+  colorR[i] = Math.floor(215 + bounce * 20);
+  colorG[i] = Math.floor(65 + bounce * 15);
+  colorB[i] = Math.floor(125 + bounce * 15);
+
+  // catch fire from adjacent fire or explosions
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      if (dx === 0 && dy === 0) continue;
+      const t = getType(x + dx, y + dy);
+      if (t === FIRE || t === LAVA) {
+        setCell(x, y, HOPPER_FIRE);
+        return;
+      }
+    }
+  }
+
+  // drown only if submerged 5 deep — liquid above for 5 consecutive cells
+  let submerged = 0;
+  for (let h = 1; h <= 5; h++) {
+    const t = getType(x, y - h);
+    if (t === WATER || t === LAVA || t === ACID) submerged++;
+    else break;
+  }
+  if (submerged >= 5) {
+    setCell(x, y, EMPTY);
+    return;
+  }
+
+  // gravity — fall straight down, sink through liquids
+  const belowType = getType(x, y + 1);
+  if (isEmpty(x, y + 1)) {
+    swap(x, y, x, y + 1);
+    return;
+  }
+  if (belowType === WATER || belowType === OIL) {
+    swap(x, y, x, y + 1);
+    return;
+  }
+  if (belowType === LAVA || belowType === ACID) {
+    setCell(x, y, FIRE);
+    return;
+  }
+
+  // on solid ground — walk
+  if (Math.random() < 0.3) return; // slow down a bit
+
+  const nx = x + dir;
+  // pass through other hoppers — swap positions
+  if (inBounds(nx, y) && getType(nx, y) === HOPPER) {
+    swap(x, y, nx, y);
+    return;
+  }
+  if (isEmpty(nx, y) && !isEmpty(nx, y + 1)) {
+    // can walk forward and there's ground ahead
+    swap(x, y, nx, y);
+  } else if (isEmpty(nx, y) && isEmpty(nx, y + 1)) {
+    // gap ahead — walk and fall
+    swap(x, y, nx, y);
+  } else if (!isEmpty(nx, y)) {
+    // blocked — try to step/jump up (up to 3 pixels)
+    let jumped = false;
+    for (let jumpH = 1; jumpH <= 5; jumpH++) {
+      // check destination is clear
+      if (!isEmpty(nx, y - jumpH)) continue;
+      // check all cells above hopper are clear (room to jump)
+      let clear = true;
+      for (let h = 1; h <= jumpH; h++) {
+        if (!isEmpty(x, y - h)) { clear = false; break; }
+      }
+      if (clear) {
+        swap(x, y, nx, y - jumpH);
+        jumped = true;
+        break;
+      }
+    }
+    if (!jumped) {
+      lifetime[i] = -dir;
+    }
+  }
+}
+
+function updateFuseLit(x, y) {
+  const i = idx(x, y);
+  lifetime[i]--;
+  // flicker
+  colorR[i] = randInt(220, 255);
+  colorG[i] = randInt(80, 160);
+  colorB[i] = randInt(10, 40);
+  if (lifetime[i] <= 0) {
+    // burn out — spread fire to adjacent fuse and explosives
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = x + dx, ny = y + dy;
+        const t = getType(nx, ny);
+        if (t === FUSE) setCell(nx, ny, FUSE_LIT);
+        if (t === GUNPOWDER) setCell(nx, ny, GUNPOWDER_LIT);
+        if (t === C4) setCell(nx, ny, C4_LIT);
+        if (t === DYNAMITE) setCell(nx, ny, DYNAMITE_LIT);
+        if (t === NITRO) setCell(nx, ny, NITRO_LIT);
+        if (t === FIREWORK) setCell(nx, ny, FIREWORK_LIT);
+        if (t === WOOD || t === OIL || t === PLANT) setCell(nx, ny, FIRE);
+        if (t === HOPPER) setCell(nx, ny, HOPPER_FIRE);
+        if (t === GAS) { explode(nx, ny, 10); }
+      }
+    }
+    setCell(x, y, FIRE);
+  }
+}
+
+function updateHopperFire(x, y) {
+  const i = idx(x, y);
+  lifetime[i]--;
+  // flicker
+  colorR[i] = randInt(200, 255);
+  colorG[i] = randInt(60, 140);
+  colorB[i] = randInt(10, 40);
+  if (lifetime[i] <= 0) {
+    // die — leave a puff of smoke
+    if (Math.random() < 0.5) setCell(x, y, SMOKE);
+    else setCell(x, y, EMPTY);
+    return;
+  }
+  // still falls
+  if (isEmpty(x, y + 1)) { swap(x, y, x, y + 1); return; }
+  // wander erratically while burning
+  const dir = Math.random() < 0.5 ? -1 : 1;
+  if (isEmpty(x + dir, y)) swap(x, y, x + dir, y);
+}
+
 function updateVoid(x, y) {
   const i = idx(x, y);
   // subtle dark shimmer
@@ -1896,7 +2439,13 @@ function simulate() {
         case WET_WOOD:      updateWetWood(x, y); break;
         case PORTAL_BLUE:   updatePortal(x, y, portalOrangePos); break;
         case PORTAL_ORANGE: updatePortal(x, y, portalBluePos); break;
-        // WALL, STONE, C4, GLASS: static, do nothing
+        case HOPPER:        updateHopper(x, y); break;
+        case HOPPER_FIRE:   updateHopperFire(x, y); break;
+        case FUSE_LIT:      updateFuseLit(x, y); break;
+        case NITRO_LIT:     updateNitroLit(x, y); break;
+        case FIREWORK_LIT:  updateFireworkLit(x, y); break;
+        // FIREWORK: static until lit
+        // WALL, STONE, C4, FUSE, NITRO, GLASS: static, do nothing
       }
     }
   }
@@ -2012,6 +2561,10 @@ function placeMaterial() {
       // clicking on dynamite lights it
       if (grid[i] === DYNAMITE) {
         setCell(px, py, DYNAMITE_LIT);
+        continue;
+      }
+      if (grid[i] === FIREWORK) {
+        setCell(px, py, FIREWORK_LIT);
         continue;
       }
       // erasing a portal — clean up tracking
